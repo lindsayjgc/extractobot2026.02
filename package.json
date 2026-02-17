@@ -1,0 +1,22 @@
+{
+  "name": "extractobot",
+  "version": "1.0.0",
+  "description": "Export data from Collibra communities",
+  "main": "index.js",
+  "scripts": {
+    "start": "node indexGraphQL.js",
+    "test": "node scripts/testConnection.js",
+    "test:graphql": "node scripts/testGraphQL.js",
+    "view": "node scripts/viewExport.js",
+    "communities": "node scripts/showCommunities.js"
+  },
+  "keywords": ["collibra", "data-export", "governance"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cli-table3": "^0.6.3",
+    "inquirer": "^8.2.5"
+  }
+}

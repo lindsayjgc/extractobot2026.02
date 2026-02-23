@@ -117,7 +117,6 @@ class CollibraGraphQLExporter {
         domain {
           id
           name
-          type { name }
           parent {
             id
             name
@@ -273,8 +272,7 @@ class CollibraGraphQLExporter {
       status: asset.status?.name,
       domain: {
         id: asset.domain?.id,
-        name: asset.domain?.name,
-        type: asset.domain?.type?.name
+        name: asset.domain?.name
       },
       community: {
         id: asset.domain?.parent?.id,
@@ -467,23 +465,104 @@ class CollibraGraphQLExporter {
         }
       };
 
-      // Write to file
+      // Write to file(s) - handle large exports by splitting
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `${communityName.replace(/[^a-z0-9]/gi, '_')}_GraphQL_${timestamp}.json`;
-      const filepath = path.join(outputDir, filename);
+      const baseFilename = communityName.replace(/[^a-z0-9]/gi, '_');
       
-      fs.writeFileSync(filepath, JSON.stringify(exportData, null, 2));
+      // For large exports (>50k assets), split by domain to avoid string length limits
+      const SPLIT_THRESHOLD = 50000;
       
-      console.log('\n✓ Export completed successfully!');
-      console.log(`📊 Statistics:`);
-      console.log(`   - Communities: ${exportData.statistics.totalCommunities} (${mainCommunity.name}${subcommunities.length > 0 ? ` + ${subcommunities.length} subcommunities` : ''})`);
-      console.log(`   - Domains: ${exportData.statistics.totalDomains}`);
-      console.log(`   - Assets: ${exportData.statistics.totalAssets}`);
-      console.log(`   - With Attributes: ${exportData.statistics.assetsWithAttributes}`);
-      console.log(`   - With Relations: ${exportData.statistics.assetsWithRelations}`);
-      console.log(`📁 Output file: ${filepath}`);
-      
-      return filepath;
+      if (transformedAssets.length > SPLIT_THRESHOLD) {
+        console.log(`\n⚠️  Large export detected (${transformedAssets.length.toLocaleString()} assets)`);
+        console.log('📦 Splitting into multiple files by domain to avoid memory limits...\n');
+        
+        const exportDir = path.join(outputDir, `${baseFilename}_${timestamp}`);
+        if (!fs.existsSync(exportDir)) {
+          fs.mkdirSync(exportDir, { recursive: true });
+        }
+        
+        // Write each domain as a separate file
+        let fileCount = 0;
+        Object.values(domainMap).forEach((domain, index) => {
+          const domainFilename = `domain_${String(index + 1).padStart(4, '0')}_${domain.name.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}.json`;
+          const domainFilepath = path.join(exportDir, domainFilename);
+          
+          const domainExport = {
+            domain: {
+              id: domain.id,
+              name: domain.name,
+              community: domain.community
+            },
+            assets: domain.assets,
+            statistics: {
+              totalAssets: domain.assets.length,
+              assetsWithAttributes: domain.assets.filter(a => a.attributes && a.attributes.length > 0).length,
+              assetsWithRelations: domain.assets.filter(a => a.relations && a.relations.length > 0).length
+            },
+            exportedAt: new Date().toISOString()
+          };
+          
+          fs.writeFileSync(domainFilepath, JSON.stringify(domainExport, null, 2));
+          fileCount++;
+          
+          if (fileCount % 10 === 0) {
+            console.log(`  ✓ Wrote ${fileCount}/${Object.keys(domainMap).length} files...`);
+          }
+        });
+        
+        console.log(`  ✓ Wrote all ${fileCount} domain files`);
+        
+        // Write manifest/summary file
+        const manifestFilepath = path.join(exportDir, '_MANIFEST.json');
+        const manifest = {
+          community: exportData.community,
+          exportType: 'split',
+          splitReason: `Asset count (${transformedAssets.length.toLocaleString()}) exceeds threshold (${SPLIT_THRESHOLD.toLocaleString()})`,
+          totalFiles: Object.keys(domainMap).length,
+          domains: Object.values(domainMap).map((domain, index) => ({
+            filename: `domain_${String(index + 1).padStart(4, '0')}_${domain.name.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}.json`,
+            domainName: domain.name,
+            domainId: domain.id,
+            community: domain.community,
+            assetCount: domain.assets.length
+          })),
+          statistics: exportData.statistics,
+          exportedAt: new Date().toISOString()
+        };
+        
+        fs.writeFileSync(manifestFilepath, JSON.stringify(manifest, null, 2));
+        
+        console.log('\n✓ Export completed successfully!');
+        console.log(`📊 Statistics:`);
+        console.log(`   - Communities: ${exportData.statistics.totalCommunities} (${mainCommunity.name}${subcommunities.length > 0 ? ` + ${subcommunities.length} subcommunities` : ''})`);
+        console.log(`   - Domains: ${exportData.statistics.totalDomains.toLocaleString()}`);
+        console.log(`   - Assets: ${exportData.statistics.totalAssets.toLocaleString()}`);
+        console.log(`   - With Attributes: ${exportData.statistics.assetsWithAttributes.toLocaleString()}`);
+        console.log(`   - With Relations: ${exportData.statistics.assetsWithRelations.toLocaleString()}`);
+        console.log(`📁 Output directory: ${exportDir}`);
+        console.log(`📄 Files created: ${fileCount + 1} (${fileCount} domain files + 1 manifest)`);
+        console.log(`\n💡 Tip: See _MANIFEST.json for an overview of all files`);
+        
+        return exportDir;
+        
+      } else {
+        // Normal single-file export for smaller datasets
+        const filename = `${baseFilename}_GraphQL_${timestamp}.json`;
+        const filepath = path.join(outputDir, filename);
+        
+        fs.writeFileSync(filepath, JSON.stringify(exportData, null, 2));
+        
+        console.log('\n✓ Export completed successfully!');
+        console.log(`📊 Statistics:`);
+        console.log(`   - Communities: ${exportData.statistics.totalCommunities} (${mainCommunity.name}${subcommunities.length > 0 ? ` + ${subcommunities.length} subcommunities` : ''})`);
+        console.log(`   - Domains: ${exportData.statistics.totalDomains}`);
+        console.log(`   - Assets: ${exportData.statistics.totalAssets}`);
+        console.log(`   - With Attributes: ${exportData.statistics.assetsWithAttributes}`);
+        console.log(`   - With Relations: ${exportData.statistics.assetsWithRelations}`);
+        console.log(`📁 Output file: ${filepath}`);
+        
+        return filepath;
+      }
 
     } catch (error) {
       console.error('\n❌ Export failed:', error.message);

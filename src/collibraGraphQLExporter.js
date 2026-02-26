@@ -121,6 +121,7 @@ class CollibraGraphQLExporter {
             id
             name
           }
+            type { name }
         }
         type { name }
         status { name }
@@ -272,7 +273,8 @@ class CollibraGraphQLExporter {
       status: asset.status?.name,
       domain: {
         id: asset.domain?.id,
-        name: asset.domain?.name
+        name: asset.domain?.name,
+        type: asset.domain?.type?.name
       },
       community: {
         id: asset.domain?.parent?.id,

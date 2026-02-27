@@ -473,7 +473,7 @@ class CollibraGraphQLExporter {
       const baseFilename = communityName.replace(/[^a-z0-9]/gi, '_');
       
       // For large exports (>50k assets), split by domain to avoid string length limits
-      const SPLIT_THRESHOLD = 50000;
+      const SPLIT_THRESHOLD = 500000;
       
       if (transformedAssets.length > SPLIT_THRESHOLD) {
         console.log(`\n⚠️  Large export detected (${transformedAssets.length.toLocaleString()} assets)`);

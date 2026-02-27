@@ -79,7 +79,7 @@ class CollibraGraphQLExporter {
       outgoingRelations {
         target {
           id
-          displayName
+          fullName
           type { name }
         }
         type {
@@ -92,7 +92,7 @@ class CollibraGraphQLExporter {
       incomingRelations {
         source {
           id
-          displayName
+          fullName
           type { name }
         }
         type {
@@ -113,6 +113,7 @@ class CollibraGraphQLExporter {
     const query = `{
       assets(limit: ${limit}, offset: ${offset}${whereString}) {
         id
+        fullName
         displayName
         domain {
           id
@@ -267,7 +268,7 @@ class CollibraGraphQLExporter {
   transformAsset(asset) {
     const transformed = {
       id: asset.id,
-      name: asset.displayName,  // Use displayName since 'name' field doesn't exist in GraphQL
+      fullName: asset.fullName,
       displayName: asset.displayName,
       type: asset.type?.name,
       status: asset.status?.name,
@@ -354,7 +355,7 @@ class CollibraGraphQLExporter {
           relationTypeReverse: rel.type?.corole,
           relatedAsset: {
             id: rel.target?.id,
-            displayName: rel.target?.displayName,
+            fullName: rel.target?.fullName,
             type: rel.target?.type?.name
           }
         });
@@ -369,7 +370,7 @@ class CollibraGraphQLExporter {
           relationTypeReverse: rel.type?.role,
           relatedAsset: {
             id: rel.source?.id,
-            displayName: rel.source?.displayName,
+            fullName: rel.source?.fullName,
             type: rel.source?.type?.name
           }
         });
